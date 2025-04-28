@@ -1,0 +1,37 @@
+# Окружение и зависимости
+venv/
+*.egg-info/
+dist/
+build/
+
+# Кеши Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# База данных (SQLite)
+db.sqlite3
+
+# Конфиденциальные файлы
+.env
+
+# Логи
+*.log
+
+# IDE файлы
+.idea/
+.vscode/
+
+# MacOS системные файлы
+.DS_Store
+
+# Кеши покрытия тестов
+htmlcov/
+coverage/
+
+# Медиа и статика (для работы с файлами)
+media/
+staticfiles/
+
+# Swap-файлы от редакторов
+*.swp
