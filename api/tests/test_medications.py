@@ -2,7 +2,7 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
-from api.models import Medication
+from api.models import Medication, MedicationSchedule, NotificationSettings
 
 
 @pytest.fixture
@@ -130,3 +130,56 @@ def test_delete_medication(api_client, user, medication):
     response = api_client.delete(f'/api/medications/{medication.id}/')
     assert response.status_code == status.HTTP_204_NO_CONTENT
     assert not Medication.objects.filter(id=medication.id).exists()
+
+
+# Проверка прав доступа
+@pytest.mark.django_db
+def test_medication_access_restriction(api_client, user, medication):
+    other_user = get_user_model().objects.create_user(
+        username='otheruser',
+        email='otheruser@example.com',
+        password='password123'
+    )
+    api_client.force_authenticate(user=other_user)
+    response = api_client.get(f'/api/medications/{medication.id}/')
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# Валидация данных
+@pytest.mark.django_db
+def test_create_medication_invalid_dosage(api_client, user):
+    api_client.force_authenticate(user=user)
+    data = {
+        'name': 'Aspirin',
+        'form': 'tablet',
+        'dosage_per_unit': 'invalid_dosage',
+        'unit': 'mg',
+        'icon_name': 'pill',
+        'icon_color': 'red'
+    }
+    response = api_client.post('/api/medications/', data, format='json')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'dosage_per_unit' in response.data
+
+
+# Тест на создание медикамента с полными данными
+@pytest.mark.django_db
+def test_create_medication_full_data(api_client, user):
+    api_client.force_authenticate(user=user)
+    data = {
+        'name': 'Ibuprofen',
+        'form': 'tablet',
+        'dosage_per_unit': '200mg',
+        'unit': 'mg',
+        'instructions': 'Take one tablet every 4-6 hours',
+        'total_quantity': 30,
+        'remaining_quantity': 30,
+        'low_stock_threshold': 5,
+        'track_stock': True,
+        'icon_name': 'pill',
+        'icon_color': 'blue'
+    }
+    response = api_client.post('/api/medications/', data, format='json')
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data['name'] == 'Ibuprofen'
+    assert response.data['dosage_per_unit'] == '200mg'

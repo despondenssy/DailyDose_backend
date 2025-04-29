@@ -1,3 +1,4 @@
+import re
 from rest_framework import serializers
 from .models import User, Medication, MedicationSchedule, MedicationIntake, NotificationSettings
 
@@ -17,6 +18,12 @@ class MedicationSerializer(serializers.ModelSerializer):
             'icon_name', 'icon_color', 'created_at', 'updated_at'
         ]
         read_only_fields = ('user', 'created_at', 'updated_at')
+
+    def validate_dosage_per_unit(self, value):
+        # Пример валидации дозировки (проверка, что значение соответствует формату)
+        if not re.match(r'^\d+(mg|g|mcg)$', value):  # Ожидаем, что дозировка будет числом и единицей измерения (mg, g, mcg)
+            raise serializers.ValidationError("Invalid dosage format. Expected format: number + unit (mg, g, mcg).")
+        return value
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
@@ -46,7 +53,27 @@ class MedicationIntakeSerializer(serializers.ModelSerializer):
             'created_at', 'medication_name', 'meal_relation', 'dosage_per_unit',
             'instructions', 'dosage_by_time', 'unit', 'icon_name', 'icon_color'
         ]
-        read_only_fields = ('created_at',)
+        read_only_fields = (
+            'id', 'created_at',
+            'medication', 'medication_name', 'meal_relation', 'dosage_per_unit',
+            'instructions', 'unit', 'icon_name', 'icon_color'
+        )
+
+    def create(self, validated_data):
+        schedule = validated_data['schedule']
+        medication = schedule.medication
+
+        # Автоматически проставляем связанные поля
+        validated_data['medication'] = medication
+        validated_data['medication_name'] = medication.name
+        validated_data['meal_relation'] = schedule.meal_relation
+        validated_data['dosage_per_unit'] = medication.dosage_per_unit
+        validated_data['instructions'] = medication.instructions
+        validated_data['unit'] = medication.unit
+        validated_data['icon_name'] = medication.icon_name
+        validated_data['icon_color'] = medication.icon_color
+
+        return super().create(validated_data)
 
 
 class NotificationSettingsSerializer(serializers.ModelSerializer):
