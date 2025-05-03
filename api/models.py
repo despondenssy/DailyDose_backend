@@ -1,16 +1,24 @@
+from django.core.validators import MinValueValidator, MinLengthValidator, RegexValidator
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 
 class User(AbstractUser):
-    email = models.EmailField(unique=True)
+    #id берем с фронтенда
+    id = models.CharField(max_length=20, primary_key=True)
+    # базовый класс пользователя уже включает поля username, password, first_name, last_name, и прочие.
+    email = models.EmailField(unique=True) #делаем email уникальным
+    photo = models.ImageField(upload_to='avatars/', blank=True, null=True) #будет хранится в папке media/avatars/
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    USERNAME_FIELD = 'email' #теперь это логин
+    REQUIRED_FIELDS = ['id', 'username'] #в сериализаторе переименован в name
 
     def __str__(self):
         return self.email
 
+    class Meta:
+        verbose_name = "User"
+        verbose_name_plural = "Users"
 
 class Medication(models.Model):
     class Form(models.TextChoices):
@@ -22,23 +30,40 @@ class Medication(models.Model):
         SPRAY = "spray", "Спрей"
         POWDER = "powder", "Порошок"
 
+    id = models.CharField(max_length=20, primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='medications')
     name = models.CharField(max_length=100)
     form = models.CharField(max_length=20, choices=Form.choices)
     dosage_per_unit = models.CharField(max_length=100, blank=True, null=True)
     unit = models.CharField(max_length=50)
     instructions = models.TextField(blank=True, null=True)
-    total_quantity = models.IntegerField(default=0)
-    remaining_quantity = models.IntegerField(default=0)
-    low_stock_threshold = models.IntegerField(default=0)
+    #Добавим проверку что значения неотрицательные:
+    total_quantity = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
+    remaining_quantity = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
+    low_stock_threshold = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
     track_stock = models.BooleanField(default=True)
     icon_name = models.CharField(max_length=50)
     icon_color = models.CharField(max_length=50)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
+    #время на фронте хранится в миллисекундах (Date.now()) поэтому пусть тут и далле будет просто число
+    created_at = models.BigIntegerField()
+    updated_at = models.BigIntegerField()
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = "Medication"
+        verbose_name_plural = "Medications"
 
 
 class MedicationSchedule(models.Model):
@@ -54,6 +79,7 @@ class MedicationSchedule(models.Model):
         WITH_MEAL = "with_meal", "Во время еды"
         NO_RELATION = "no_relation", "Не связано с едой"
 
+    id = models.CharField(max_length=20, primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='schedules')
     medication = models.ForeignKey(Medication, on_delete=models.CASCADE, related_name='schedules')
     frequency = models.CharField(max_length=30, choices=Frequency.choices)
@@ -63,13 +89,22 @@ class MedicationSchedule(models.Model):
     meal_relation = models.CharField(max_length=30, choices=MealRelation.choices)
     start_date = models.DateField()
     end_date = models.DateField(blank=True, null=True)
-    duration_days = models.IntegerField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    #добавлен валидатор чтоб больше 0
+    duration_days = models.IntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(1)]
+    )
+    #снова меняем на миллисекунды
+    created_at = models.BigIntegerField()
+    updated_at = models.BigIntegerField()
 
     def __str__(self):
         return f"{self.medication.name} ({self.start_date})"
 
+    class Meta:
+        verbose_name = "Medication Schedule"
+        verbose_name_plural = "Medication Schedules"
 
 class MedicationIntake(models.Model):
     class Status(models.TextChoices):
@@ -77,32 +112,44 @@ class MedicationIntake(models.Model):
         MISSED = "missed", "Пропущено"
         PENDING = "pending", "Ожидается"
 
+    id = models.CharField(max_length=20, primary_key=True)
     schedule = models.ForeignKey(MedicationSchedule, on_delete=models.CASCADE, related_name='intakes')
-    medication = models.ForeignKey(Medication, on_delete=models.CASCADE)
-    scheduled_time = models.TimeField()
-    scheduled_date = models.DateField()
+    medication = models.ForeignKey(Medication, on_delete=models.CASCADE, related_name='intakes')
+    scheduled_time = models.CharField( #используем charfield как во фронте
+        max_length=5,
+        validators=[RegexValidator(r'^\d{2}:\d{2}$', "Time must be in HH:MM format.")]
+    )
+    scheduled_date = models.CharField(
+        max_length=10,
+        validators=[RegexValidator(r'^\d{4}-\d{2}-\d{2}$', "Date must be in YYYY-MM-DD format.")]
+    )
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
-    taken_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    taken_at = models.BigIntegerField(blank=True, null=True)
+    created_at = models.BigIntegerField()
+    updated_at = models.BigIntegerField()
 
     # Дублируем поля для быстрого доступа
-    medication_name = models.CharField(max_length=100)
+    medication_name = models.CharField(max_length=100, validators=[MinLengthValidator(1)])
     meal_relation = models.CharField(max_length=30, choices=MedicationSchedule.MealRelation.choices)
     dosage_per_unit = models.CharField(max_length=100, blank=True, null=True)
     instructions = models.TextField(blank=True, null=True)
-    dosage_by_time = models.CharField(max_length=50)
-    unit = models.CharField(max_length=50)
+    dosage_by_time = models.CharField(max_length=20, validators=[MinLengthValidator(1)])
+    unit = models.CharField(max_length=20, validators=[MinLengthValidator(1)])
     icon_name = models.CharField(max_length=50)
     icon_color = models.CharField(max_length=50)
 
     def __str__(self):
         return f"{self.medication_name} at {self.scheduled_time} on {self.scheduled_date}"
 
+    class Meta:
+        verbose_name = "Medication Intake"
+        verbose_name_plural = "Medication Intakes"
+
 
 class NotificationSettings(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='notification_settings')
     medication_reminders_enabled = models.BooleanField(default=True)
-    minutes_before_sheduled_time = models.IntegerField(default=15)
+    minutes_before_scheduled_time = models.IntegerField(default=15)
     low_stock_reminders_enabled = models.BooleanField(default=True)
 
     def __str__(self):

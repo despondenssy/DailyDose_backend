@@ -7,8 +7,8 @@ from .serializers import (
     NotificationSettingsSerializer
 )
 
-class MedicationViewSet(viewsets.ModelViewSet):
-    serializer_class = MedicationSerializer
+class MedicationViewSet(viewsets.ModelViewSet): #реализует все CRUD операции
+    serializer_class = MedicationSerializer #подключаем сериализатор
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):

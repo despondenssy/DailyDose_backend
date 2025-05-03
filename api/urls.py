@@ -1,5 +1,7 @@
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.conf import settings
+from django.conf.urls.static import static
+from rest_framework.routers import DefaultRouter #тк viewset реализует сразу несколько операций используем router
 from .views import (
     MedicationViewSet,
     MedicationScheduleViewSet,
@@ -14,5 +16,6 @@ router.register(r'intakes', MedicationIntakeViewSet, basename='intake')
 router.register(r'notifications', NotificationSettingsViewSet, basename='notification')
 
 urlpatterns = [
-    path('', include(router.urls)),
-]
+    path('', include(router.urls)), #все адреса с роутера будут доступны здесь
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+#последнее для обработки фото

@@ -135,3 +135,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True
 
 AUTH_USER_MODEL = 'api.User'
+
+MEDIA_URL = '/media/' # URL для доступа к файлам
+MEDIA_ROOT = BASE_DIR / 'media' # Папка на сервере
