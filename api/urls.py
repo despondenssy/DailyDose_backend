@@ -17,5 +17,7 @@ router.register(r'notifications', NotificationSettingsViewSet, basename='notific
 
 urlpatterns = [
     path('', include(router.urls)), #все адреса с роутера будут доступны здесь
+    path("auth/", include("djoser.urls")), #для авторизации по токену
+    path("auth/", include("djoser.urls.authtoken")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 #последнее для обработки фото
