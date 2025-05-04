@@ -32,7 +32,7 @@ venv\Scripts\activate     # Для Windows
 pip install -r requirements.txt
    ```
 
-Примените миграции:
+Примените миграции: (после этого создается база данных)
 ```bash
 python manage.py migrate
    ```
