@@ -1,13 +1,6 @@
 # DailyDose Backend
 
-API для управления приёмом лекарств.  
-
-## Возможности:
-- Регистрация и аутентификация пользователей
-- Управление лекарствами (добавление, изменение, удаление)
-- Управление курсами приёма лекарств
-- JWT авторизация
-- Защита API и привязка данных к конкретному пользователю
+API для управления приёмом лекарств.
 
 ## Стек технологий:
 - Python 3.12
@@ -17,9 +10,34 @@ API для управления приёмом лекарств.
 - SQLite (для разработки)
 
 ## Установка:
+открываем в проводнике папку, в которую хотим склонить гит, вводим cmd. В пути не должно быть русских символов.
+
+в открывшемся терминале вводим команду
 ```bash
-git clone https://github.com/despondenssy/DailyDose_backend.git
-cd DailyDose_backend  # Переход в папку проекта
+git clone https://github.com/KlyushovaPolina/DailyDose_backend.git
+```
+появившуюся папку DailyDose_backend открываем в вашей IDE 
+
+Далее работаем в терминале в проекте:
+
+Создайте и активируйте виртуальное окружение:
+```bash
 python -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # Для Linux/MacOS
+venv\Scripts\activate     # Для Windows
+   ```
+
+Установите зависимости:
+```bash
 pip install -r requirements.txt
+   ```
+
+Примените миграции:
+```bash
+python manage.py migrate
+   ```
+
+Запустите сервер:
+```bash
+python manage.py runserver
+   ```
