@@ -34,9 +34,9 @@ class Medication(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='medications')
     name = models.CharField(max_length=100)
     form = models.CharField(max_length=20, choices=Form.choices)
-    dosage_per_unit = models.CharField(max_length=100, blank=True, null=True)
+    dosage_per_unit = models.CharField(max_length=100, blank=True, null=True) #необязательное
     unit = models.CharField(max_length=50)
-    instructions = models.TextField(blank=True, null=True)
+    instructions = models.TextField()
     #Добавим проверку что значения неотрицательные:
     total_quantity = models.IntegerField(
         default=0,
@@ -115,6 +115,7 @@ class MedicationIntake(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
     schedule = models.ForeignKey(MedicationSchedule, on_delete=models.CASCADE, related_name='intakes')
     medication = models.ForeignKey(Medication, on_delete=models.CASCADE, related_name='intakes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
     scheduled_time = models.CharField( #используем charfield как во фронте
         max_length=5,
         validators=[RegexValidator(r'^\d{2}:\d{2}$', "Time must be in HH:MM format.")]
@@ -132,7 +133,7 @@ class MedicationIntake(models.Model):
     medication_name = models.CharField(max_length=100, validators=[MinLengthValidator(1)])
     meal_relation = models.CharField(max_length=30, choices=MedicationSchedule.MealRelation.choices)
     dosage_per_unit = models.CharField(max_length=100, blank=True, null=True)
-    instructions = models.TextField(blank=True, null=True)
+    instructions = models.TextField()
     dosage_by_time = models.CharField(max_length=20, validators=[MinLengthValidator(1)])
     unit = models.CharField(max_length=20, validators=[MinLengthValidator(1)])
     icon_name = models.CharField(max_length=50)

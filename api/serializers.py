@@ -3,26 +3,35 @@ import re
 from django.utils import timezone
 from rest_framework import serializers
 from .models import User, Medication, MedicationSchedule, MedicationIntake, NotificationSettings
+from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
 
+class UserCreateSerializer(BaseUserCreateSerializer):
+    name = serializers.CharField(source='username')
+
+    class Meta(BaseUserCreateSerializer.Meta):
+        model = User
+        fields = ('id', 'name', 'email', 'password')
 
 class UserSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(read_only=True) #чтобы не просил айди при пут запросе
     #фронтенд ждет name, так что переименуем:
     name = serializers.CharField(source='username')
-    photoUrl = serializers.SerializerMethodField() #значение будет вычисляться с помощью метода ниже
+    #photoUrl = serializers.SerializerMethodField() #значение будет вычисляться с помощью метода ниже
     class Meta:
         model = User
-        fields = ('id', 'name', 'email', 'photoUrl') #указываем какие параметры из модели использовать
+        #fields = ('id', 'name', 'email', 'photoUrl') #указываем какие параметры из модели использовать
+        fields = ('id', 'name', 'email')  # указываем какие параметры из модели использовать
 
-    def get_photoUrl(self, obj):
-        request = self.context.get('request')
-        if obj.photo and request:
-            return request.build_absolute_uri(obj.photo.url)
-        return None
+    # def get_photoUrl(self, obj):
+    #     request = self.context.get('request')
+    #     if obj.photo and request:
+    #         return request.build_absolute_uri(obj.photo.url)
+    #     return None
 
 
 class MedicationSerializer(serializers.ModelSerializer):
     #переписываем все названия в camelCase как во фронтенде
-    dosagePerUnit = serializers.CharField(source='dosage_per_unit', allow_blank=True, allow_null=True)
+    dosagePerUnit = serializers.CharField(source='dosage_per_unit', allow_blank=True, allow_null=True, required=False)
     totalQuantity = serializers.IntegerField(source='total_quantity')
     remainingQuantity = serializers.IntegerField(source='remaining_quantity')
     lowStockThreshold = serializers.IntegerField(source='low_stock_threshold')
@@ -57,17 +66,21 @@ class MedicationScheduleSerializer(serializers.ModelSerializer):
     medicationId = serializers.CharField(source='medication.id')
     mealRelation = serializers.CharField(source='meal_relation')
     startDate = serializers.DateField(source='start_date')
-    endDate = serializers.DateField(source='end_date', allow_null=True)
-    durationDays = serializers.IntegerField(source='duration_days', allow_null=True)
+    endDate = serializers.DateField(source='end_date', allow_null=True, required=False)
+    durationDays = serializers.IntegerField(source='duration_days', allow_null=True, required=False)
     createdAt = serializers.IntegerField(source='created_at')
     updatedAt = serializers.IntegerField(source='updated_at')
     class Meta:
         model = MedicationSchedule
         fields = [
-            'id', 'user', 'medication', 'frequency', 'days', 'dates', 'times',
-            'meal_relation', 'start_date', 'end_date', 'duration_days',
-            'created_at', 'updated_at'
+            'id', 'medicationId', 'frequency', 'days', 'dates', 'times',
+            'mealRelation', 'startDate', 'endDate', 'durationDays',
+            'createdAt', 'updatedAt'
         ]
+        # скрываем поле user от входа, оно задаётся на сервере
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False}
+        }
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
@@ -89,12 +102,12 @@ class MedicationIntakeSerializer(serializers.ModelSerializer):
     scheduledTime = serializers.CharField(source='scheduled_time')
     scheduledDate = serializers.CharField(source='scheduled_date')
 
-    takenAt = serializers.IntegerField(source='taken_at', allow_null=True)
+    takenAt = serializers.IntegerField(source='taken_at', allow_null=True, required=False)
     createdAt = serializers.IntegerField(source='created_at')
     updatedAt = serializers.IntegerField(source='updated_at')
     medicationName = serializers.CharField(source='medication_name')
     mealRelation = serializers.CharField(source='meal_relation')
-    dosagePerUnit = serializers.CharField(source='dosage_per_unit', allow_null=True)
+    dosagePerUnit = serializers.CharField(source='dosage_per_unit', allow_null=True, required=False)
     dosageByTime = serializers.CharField(source='dosage_by_time')
     iconName = serializers.CharField(source='icon_name')
     iconColor = serializers.CharField(source='icon_color')
@@ -107,16 +120,24 @@ class MedicationIntakeSerializer(serializers.ModelSerializer):
             'mealRelation', 'dosagePerUnit', 'dosageByTime', 'unit',
             'instructions', 'iconName', 'iconColor'
         ]
-        read_only_fields = (
-            'medicationName', 'mealRelation', 'dosagePerUnit', 'unit',
-            'instructions', 'iconName', 'iconColor'
-        ) #тк проставляются автоматически
 
     def create(self, validated_data):
-        schedule = validated_data['schedule']
+        # Получаем ID расписания
+        schedule_data = validated_data.pop('schedule')  # это dict: {'id': '...'}
+        schedule_id = schedule_data['id']
+
+        # Получаем объект расписания из базы
+        user = self.context['request'].user
+        try:
+            schedule = MedicationSchedule.objects.get(id=schedule_id, user=user)
+        except MedicationSchedule.DoesNotExist:
+            raise serializers.ValidationError("Расписание с таким ID не найдено или не принадлежит пользователю")
+
+        # Получаем связанный объект лекарства
         medication = schedule.medication
 
-        # Автоматически проставляем связанные поля
+        # Проставляем связанные объекты
+        validated_data['schedule'] = schedule
         validated_data['medication'] = medication
         validated_data['medication_name'] = medication.name
         validated_data['meal_relation'] = schedule.meal_relation
@@ -153,10 +174,13 @@ class NotificationSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationSettings
         fields = [
-            'id', 'user', 'medication_reminders_enabled',
-            'minutes_before_sheduled_time', 'low_stock_reminders_enabled'
+            'id', 'medication_reminders_enabled',
+            'minutes_before_scheduled_time', 'low_stock_reminders_enabled'
         ]
-        read_only_fields = ('user',)
+        # скрываем поле user от входа, оно задаётся на сервере
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False}
+        }
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
