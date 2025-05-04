@@ -8,7 +8,7 @@ class User(AbstractUser):
     id = models.CharField(max_length=20, primary_key=True)
     # базовый класс пользователя уже включает поля username, password, first_name, last_name, и прочие.
     email = models.EmailField(unique=True) #делаем email уникальным
-    photo = models.ImageField(upload_to='avatars/', blank=True, null=True) #будет хранится в папке media/avatars/
+    #photo = models.ImageField(upload_to='avatars/', blank=True, null=True) #будет хранится в папке media/avatars/
 
     USERNAME_FIELD = 'email' #теперь это логин
     REQUIRED_FIELDS = ['id', 'username'] #в сериализаторе переименован в name

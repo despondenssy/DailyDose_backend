@@ -82,11 +82,27 @@ class MedicationScheduleSerializer(serializers.ModelSerializer):
             'user': {'write_only': True, 'required': False}
         }
 
+    def validate(self, data):
+        # Проверка на пустой массив times
+        if 'times' in data and not data['times']:
+            raise serializers.ValidationError(
+                {'times': 'At least one time must be specified'}
+            )
+        return data
+
     def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
-        medication_id = validated_data.pop('medication').get('id')
-        validated_data['medication'] = Medication.objects.get(id=medication_id, user=self.context['request'].user)
-        return MedicationSchedule.objects.create(**validated_data)
+        try:
+            validated_data['user'] = self.context['request'].user
+            medication_id = validated_data.pop('medication').get('id')
+            validated_data['medication'] = Medication.objects.get(
+                id=medication_id, 
+                user=self.context['request'].user
+            )
+            return MedicationSchedule.objects.create(**validated_data)
+        except Medication.DoesNotExist:
+            raise serializers.ValidationError(
+                {'medication': 'Medication not found'}
+            )
 
     def update(self, instance, validated_data):
         if 'medication' in validated_data:
