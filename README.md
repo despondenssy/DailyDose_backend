@@ -17,9 +17,23 @@ API для управления приёмом лекарств.
 - SQLite (для разработки)
 
 ## Установка:
-```bash
-git clone https://github.com/despondenssy/DailyDose_backend.git
-cd DailyDose_backend  # Переход в папку проекта
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+1. Клонируйте репозиторий:
+    ```bash
+    git clone https://github.com/despondenssy/DailyDose_backend.git
+    cd DailyDose_backend  # Переход в папку проекта
+    ```
+
+2. Создайте и активируйте виртуальное окружение:
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # Для Linux/MacOS
+    venv\Scripts\activate     # Для Windows
+    ```
+
+3. Установите зависимости:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+
+Теперь проект доступен по адресу: `http://127.0.0.1:8000/`.
